@@ -141,6 +141,26 @@ func (twm TransactionWithMeta) GetTransaction() (*solana.Transaction, error) {
 	return tx, nil
 }
 
+type ParsedTransactionWithMeta struct {
+	// The slot this transaction was processed in.
+	Slot uint64 `json:"slot,omitempty"`
+
+	// Estimated production time, as Unix timestamp (seconds since the Unix epoch)
+	// of when the transaction was processed.
+	// Nil if not available.
+	BlockTime *solana.UnixTimeSeconds `json:"blockTime,omitempty" bin:"optional"`
+
+	Transaction *ParsedTransaction `json:"transaction"`
+
+	// Transaction status metadata object
+	Meta    *ParsedTransactionMeta `json:"meta,omitempty"`
+	Version TransactionVersion     `json:"version"`
+}
+
+func (ptwm ParsedTransactionWithMeta) GetTransaction() (*ParsedTransaction, error) {
+	return ptwm.Transaction, nil
+}
+
 type TransactionParsed struct {
 	Meta        *TransactionMeta    `json:"meta,omitempty"`
 	Transaction *solana.Transaction `json:"transaction"`

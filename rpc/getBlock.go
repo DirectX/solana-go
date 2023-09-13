@@ -161,3 +161,87 @@ type GetBlockResult struct {
 	// The number of blocks beneath this block.
 	BlockHeight *uint64 `json:"blockHeight"`
 }
+
+// GetParsedBlock returns identity and transaction information about a confirmed block in the ledger.
+//
+// NEW: This method is only available in solana-core v1.7 or newer.
+// Please use `getConfirmedBlock` for solana-core v1.6
+func (cl *Client) GetParsedBlockWithOpts(
+	ctx context.Context,
+	slot uint64,
+	opts *GetBlockOpts,
+) (out *GetParsedBlockResult, err error) {
+
+	obj := M{
+		"encoding": solana.EncodingBase64,
+	}
+
+	if opts != nil {
+		if opts.TransactionDetails != "" {
+			obj["transactionDetails"] = opts.TransactionDetails
+		}
+		if opts.Rewards != nil {
+			obj["rewards"] = opts.Rewards
+		}
+		if opts.Commitment != "" {
+			obj["commitment"] = opts.Commitment
+		}
+		if opts.Encoding != "" {
+			if !solana.IsAnyOfEncodingType(
+				opts.Encoding,
+				// Valid encodings:
+				solana.EncodingJSON,
+				solana.EncodingJSONParsed,
+			) {
+				return nil, fmt.Errorf("provided encoding is not supported: %s", opts.Encoding)
+			}
+			obj["encoding"] = opts.Encoding
+		}
+		if opts.MaxSupportedTransactionVersion != nil {
+			obj["maxSupportedTransactionVersion"] = *opts.MaxSupportedTransactionVersion
+		}
+	}
+
+	params := []interface{}{slot, obj}
+
+	err = cl.rpcClient.CallForInto(ctx, &out, "getBlock", params)
+
+	if err != nil {
+		return nil, err
+	}
+	if out == nil {
+		// Block is not confirmed.
+		return nil, ErrNotConfirmed
+	}
+	return
+}
+
+type GetParsedBlockResult struct {
+	// The blockhash of this block.
+	Blockhash solana.Hash `json:"blockhash"`
+
+	// The blockhash of this block's parent;
+	// if the parent block is not available due to ledger cleanup,
+	// this field will return "11111111111111111111111111111111".
+	PreviousBlockhash solana.Hash `json:"previousBlockhash"`
+
+	// The slot index of this block's parent.
+	ParentSlot uint64 `json:"parentSlot"`
+
+	// Present if "full" transaction details are requested.
+	Transactions []ParsedTransactionWithMeta `json:"transactions"`
+
+	// Present if "signatures" are requested for transaction details;
+	// an array of signatures, corresponding to the transaction order in the block.
+	Signatures []solana.Signature `json:"signatures"`
+
+	// Present if rewards are requested.
+	Rewards []BlockReward `json:"rewards"`
+
+	// Estimated production time, as Unix timestamp (seconds since the Unix epoch).
+	// Nil if not available.
+	BlockTime *solana.UnixTimeSeconds `json:"blockTime"`
+
+	// The number of blocks beneath this block.
+	BlockHeight *uint64 `json:"blockHeight"`
+}
